@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Cairo:wght@400;600;700&family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>.author-only{display:none !important}</style><!-- قاعدة أمان: أزرار التحرير مخفية دائمًا عن الزوار حتى لو تعطل ملف التصميم -->
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -47,7 +48,9 @@
     </div>
   </div>
 
-  <div class="section-title"><span class="orn">✦</span><h2>أحدث الروايات</h2><div class="line"></div><a href="#/library" class="muted" style="font-size:.85rem">عرض الكل</a></div>
+  <div class="section-title"><span class="orn">✦</span><h2>أحدث الروايات</h2><div class="line"></div>
+    <button class="btn btn-primary btn-sm author-only" onclick="openNovelDialog()">＋ رواية جديدة</button>
+    <a href="#/library" class="muted" style="font-size:.85rem">عرض الكل</a></div>
   <div class="grid" id="latestGrid"></div>
 </section>
 
@@ -135,23 +138,24 @@
   </div>
 </div></dialog>
 
-<!-- ================= نافذة إعداد النشر ================= -->
+<!-- ================= نافذة ربط الموقع ================= -->
 <dialog id="publishDialog"><div class="dlg-in">
-  <h3>⚙ إعداد النشر — مرة واحدة فقط</h3>
+  <h3>🔗 ربط المحرر بموقعك — مرة واحدة فقط</h3>
   <p class="muted" style="line-height:1.9; margin-bottom:1rem">
-    ليعمل زر النشر، يحتاج الموقع «مفتاح نشر» من GitHub يُحفظ في متصفحك فقط:<br>
-    ١· افتحي <b>github.com/settings/personal-access-tokens</b> واضغطي <b>Generate new token</b>.<br>
+    بعد الربط، كل ما تحفظينه (رواية، فصل، شخصية، اقتباس) <b>يُنشر تلقائيًا</b> ويظهر لك ولزوارك على أي جهاز.<br>
+    للحصول على «مفتاح الربط»:<br>
+    ١· افتحي <b>github.com/settings/personal-access-tokens</b> ثم <b>Generate new token</b>.<br>
     ٢· تحت <b>Repository access</b> اختاري مستودع موقعك فقط.<br>
-    ٣· تحت <b>Permissions → Contents</b> اختاري <b>Read and write</b> ثم أنشئي المفتاح وانسخيه.<br>
+    ٣· تحت <b>Permissions → Contents</b> اختاري <b>Read and write</b>، أنشئي المفتاح وانسخيه هنا.
   </p>
   <div class="form-row single"><div><label>رابط مستودعك على GitHub</label><input id="ghRepo" placeholder="https://github.com/username/eloria"></div></div>
   <div class="form-row">
-    <div><label>مفتاح النشر (Token)</label><input id="ghToken" type="password" placeholder="github_pat_..."></div>
+    <div><label>مفتاح الربط</label><input id="ghToken" type="password" placeholder="github_pat_..."></div>
     <div><label>اسم الفرع (اتركيه كما هو غالبًا)</label><input id="ghBranch" value="main"></div>
   </div>
-  <p class="muted" style="font-size:.8rem">🔒 يُحفظ المفتاح في متصفحك أنتِ فقط، ولا يُنشر مع الموقع أبدًا.</p>
+  <p class="muted" style="font-size:.8rem">🔒 يبقى المفتاح في متصفحك فقط ولا يُنشر مع الموقع. على جهاز جديد، أعيدي الربط بنفس المفتاح مرة واحدة.</p>
   <div class="dlg-actions">
-    <button class="btn btn-primary" onclick="savePublishSetup()">حفظ الإعداد</button>
+    <button class="btn btn-primary" onclick="savePublishSetup()">ربط وتفعيل النشر التلقائي</button>
     <button class="btn btn-ghost" onclick="publishDialog.close()">إلغاء</button>
   </div>
 </div></dialog>

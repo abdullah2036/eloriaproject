@@ -14,29 +14,21 @@ let editing = { novelId: null, chapterId: null };
 
 /* ---------- تحميل البيانات ---------- */
 async function loadData(){
-  // مسودات المؤلفة في هذا المتصفح لها الأولوية
-  const local = localStorage.getItem(LS_KEY);
-  if (local) { try { DB = JSON.parse(local); return; } catch(e){} }
-  // وإلا: الملف المنشور مع الموقع
+  let local = null, remote = null;
+  try { local = JSON.parse(localStorage.getItem(LS_KEY)); } catch(e){}
   try {
     const r = await fetch("data.json", {cache:"no-store"});
-    if (r.ok) { DB = await r.json(); return; }
-  } catch(e){ /* الملف غير متاح (فتح مباشر من الجهاز مثلًا) */ }
-  DB = DEFAULT_DATA; // محتوى تجريبي أولي حتى لا يبدو الموقع فارغًا
+    if (r.ok) remote = await r.json();
+  } catch(e){ /* فتح مباشر من الجهاز مثلًا */ }
+  // نختار الأحدث بين مسودات هذا المتصفح والنسخة المنشورة، فيتزامن المحتوى بين الأجهزة
+  if (local && remote) DB = ((local.updatedAt||0) >= (remote.updatedAt||0)) ? local : remote;
+  else DB = local || remote || DEFAULT_DATA;
 }
-const DEFAULT_DATA = {
-  novels: [{
-    id:"eloria1", title:"إيلوريا", status:"مستمرة",
-    tags:["فانتازيا","غموض","رومانسية"],
-    desc:"حيث تُفتح الذكريات، ويتغير المصير. في أكاديمية ملكية تحيطها الأسرار، تستيقظ إيلا دون أن تتذكر من تكون.",
-    cover:"", characters:[{name:"إيلا",role:"الشخصية الرئيسية",img:""},{name:"أدريان",role:"شخصية رئيسية",img:""}],
-    chapters:[{id:"ch1",title:"الفصل الأول: المفتاح الفضي",
-      text:"وقفت إيلا أمام البوابة الكبرى لأكاديمية إيلوريا الملكية. كان قلبها يخفق بسرعة، وشعور غريب يراودها... وكأن هذا المكان يعرفها، وكأنها كانت هنا من قبل."}]
-  }],
-  quotes:[{text:"بعض الحكايات لا تُروى... بل تُعاش.", source:"إيلوريا — الفصل الأول"}],
-  about:"مرحبًا، أنا كاتبة إيلوريا ستوري. هنا أجمع عوالمي: رواياتي وفصولي وشخصياتي واقتباساتي."
-};
-function persist(){ localStorage.setItem(LS_KEY, JSON.stringify(DB)); }
+function persist(){
+  DB.updatedAt = Date.now();
+  localStorage.setItem(LS_KEY, JSON.stringify(DB));
+  scheduleAutoPublish(); // النشر التلقائي إن كان الموقع مربوطًا
+}
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
 const esc = s => (s||"").replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
@@ -236,7 +228,7 @@ document.getElementById("authorKey").onclick = () => {
 };
 if (sessionStorage.getItem("eloria-author")) document.body.classList.add("author");
 
-/* شريط أدوات المؤلفة: نشر بضغطة زر + نسخ احتياطي */
+/* شريط أدوات المؤلفة: نشر تلقائي + نسخة احتياطية */
 function addAuthorToolbar(){
   if (document.getElementById("authorBar")) return;
   const bar = document.createElement("div");
@@ -244,26 +236,27 @@ function addAuthorToolbar(){
   bar.className = "author-only";
   bar.style.cssText = "max-width:1180px;margin:1rem auto 0;padding:0 1.2rem";
   bar.innerHTML = `<div class="panel" style="margin:0; display:flex; gap:.7rem; flex-wrap:wrap; align-items:center">
-    <b style="color:var(--plum)">✒ أدوات النشر:</b>
-    <button class="btn btn-primary btn-sm" onclick="publishData()">🚀 نشر للزوار</button>
-    <button class="btn btn-secondary btn-sm" onclick="openPublishSetup()">⚙ إعداد النشر</button>
+    <b style="color:var(--plum)">✒ النشر:</b>
+    <span id="pubStatus" class="tag lilac">...</span>
+    <button class="btn btn-secondary btn-sm" onclick="openPublishSetup()">🔗 ربط الموقع</button>
+    <button class="btn btn-ghost btn-sm" onclick="publishData(true)">نشر الآن</button>
     <button class="btn btn-ghost btn-sm" onclick="exportData()">⬇ نسخة احتياطية</button>
     <label class="btn btn-ghost btn-sm" style="cursor:pointer">⬆ استيراد<input type="file" accept=".json" hidden onchange="importData(this)"></label>
-    <small class="muted" id="pubStatus"></small>
   </div>`;
   document.querySelector("header").after(bar);
-  refreshPubStatus();
+  setPubStatus();
 }
 if (sessionStorage.getItem("eloria-author")) addAuthorToolbar();
 
-/* ---------- النشر المباشر إلى GitHub ---------- */
+/* ---------- محرك النشر التلقائي إلى GitHub ---------- */
 const GH_KEY = "eloria-gh";
 function getGH(){ try { return JSON.parse(localStorage.getItem(GH_KEY)); } catch(e){ return null; } }
-function refreshPubStatus(){
+function setPubStatus(txt, cls){
   const el = document.getElementById("pubStatus");
   if (!el) return;
-  const gh = getGH();
-  el.textContent = gh ? `متصل بـ ${gh.owner}/${gh.repo} ✓` : "لم يُضبط النشر بعد — اضغطي «إعداد النشر»";
+  if (txt){ el.textContent = txt; el.className = "tag " + (cls||"lilac"); return; }
+  el.textContent = getGH() ? "متصل ✓ كل حفظ يُنشر تلقائيًا" : "غير مربوط — التعديلات في هذا المتصفح فقط";
+  el.className = "tag " + (getGH() ? "lilac" : "");
 }
 function openPublishSetup(){
   const gh = getGH();
@@ -273,13 +266,15 @@ function openPublishSetup(){
 function savePublishSetup(){
   const m = ghRepo.value.trim().replace(/^https?:\/\/github\.com\//,"").replace(/\/+$/,"").split("/");
   if (m.length < 2 || !m[0] || !m[1]) return toast("تأكدي من رابط المستودع (مثال: github.com/username/eloria)");
-  if (!ghToken.value.trim()) return toast("أدخلي مفتاح النشر");
+  if (!ghToken.value.trim()) return toast("أدخلي مفتاح الربط");
   localStorage.setItem(GH_KEY, JSON.stringify({
     owner:m[0], repo:m[1], token:ghToken.value.trim(), branch:(ghBranch.value.trim()||"main")
   }));
-  publishDialog.close(); refreshPubStatus(); toast("تم حفظ الإعداد — جرّبي زر النشر 🚀");
+  publishDialog.close(); setPubStatus();
+  toast("تم الربط ✓ — من الآن كل حفظ يُنشر تلقائيًا");
+  publishData(); // انشري الحالة الحالية فورًا
 }
-/* تحويل النص إلى base64 مع دعم العربية والملفات الكبيرة */
+/* base64 يدعم العربية والأحجام الكبيرة */
 function b64(str){
   const bytes = new TextEncoder().encode(str);
   let bin = "";
@@ -287,26 +282,43 @@ function b64(str){
     bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
   return btoa(bin);
 }
-async function publishData(){
+let pubTimer = null, publishing = false, publishQueued = false;
+function scheduleAutoPublish(){
+  if (!getGH() || !document.body.classList.contains("author")) return;
+  clearTimeout(pubTimer);
+  setPubStatus("جارٍ الحفظ للموقع...", "rose");
+  pubTimer = setTimeout(publishData, 1500); // نجمع التعديلات المتتابعة في نشرة واحدة
+}
+async function publishData(manual){
   const gh = getGH();
-  if (!gh){ toast("أولًا: إعداد النشر (مرة واحدة)"); return openPublishSetup(); }
-  toast("جارٍ النشر... 🕊");
+  if (!gh){ if (manual){ toast("أولًا: اربطي الموقع (مرة واحدة)"); openPublishSetup(); } return; }
+  if (publishing){ publishQueued = true; return; }
+  publishing = true;
+  setPubStatus("جارٍ النشر... 🕊", "rose");
   const api = `https://api.github.com/repos/${gh.owner}/${gh.repo}/contents/data.json`;
   const headers = { "Authorization":"Bearer "+gh.token, "Accept":"application/vnd.github+json" };
   try {
-    let sha = null;
-    const g = await fetch(`${api}?ref=${gh.branch}`, { headers });
-    if (g.ok) sha = (await g.json()).sha;
-    const body = { message:"تحديث المحتوى من موقع إيلوريا ✒", branch: gh.branch,
-                   content: b64(JSON.stringify(DB, null, 2)) };
-    if (sha) body.sha = sha;
-    const r = await fetch(api, { method:"PUT", headers, body: JSON.stringify(body) });
-    if (r.ok) toast("تم النشر ✨ سيظهر للزوار خلال دقيقة تقريبًا");
-    else if (r.status === 401 || r.status === 403) toast("المفتاح غير صالح أو انتهت صلاحيته — أعيدي «إعداد النشر»");
-    else if (r.status === 404) toast("لم نجد المستودع — تأكدي من الرابط وصلاحيات المفتاح");
-    else if (r.status === 409) toast("تعارض في الحفظ — أعيدي المحاولة الآن");
-    else toast("تعذر النشر (رمز "+r.status+") — أعيدي المحاولة");
-  } catch(e){ toast("تعذر الاتصال بالإنترنت — أعيدي المحاولة"); }
+    let ok = false;
+    for (let attempt = 0; attempt < 2 && !ok; attempt++){
+      let sha = null;
+      const g = await fetch(`${api}?ref=${gh.branch}`, { headers });
+      if (g.ok) sha = (await g.json()).sha;
+      const body = { message:"تحديث المحتوى من محرر إيلوريا ✒", branch: gh.branch,
+                     content: b64(JSON.stringify(DB, null, 2)) };
+      if (sha) body.sha = sha;
+      const r = await fetch(api, { method:"PUT", headers, body: JSON.stringify(body) });
+      if (r.ok){ ok = true; break; }
+      if (r.status === 409) continue; // تعارض: نجلب sha من جديد ونعيد مرة واحدة
+      if (r.status === 401 || r.status === 403){ setPubStatus("المفتاح غير صالح — أعيدي الربط", ""); if (manual) toast("مفتاح الربط غير صالح أو انتهى — افتحي «ربط الموقع»"); publishing=false; return; }
+      if (r.status === 404){ setPubStatus("لم نجد المستودع — راجعي الربط", ""); if (manual) toast("لم نجد المستودع — تأكدي من الرابط وصلاحيات المفتاح"); publishing=false; return; }
+      setPubStatus("تعذر النشر — سيُعاد تلقائيًا مع الحفظ التالي", ""); publishing=false; return;
+    }
+    if (ok){ setPubStatus("منشور ✓ آخر حفظ وصل للموقع", "lilac"); if (manual) toast("تم النشر ✨ يظهر للزوار خلال دقيقة تقريبًا"); }
+  } catch(e){
+    setPubStatus("لا اتصال — سيُنشر تلقائيًا عند عودة الإنترنت", "");
+  }
+  publishing = false;
+  if (publishQueued){ publishQueued = false; publishData(); }
 }
 
 function exportData(){
@@ -315,7 +327,7 @@ function exportData(){
   a.href = URL.createObjectURL(blob);
   a.download = "data.json";
   a.click();
-  toast("تم تنزيل نسخة احتياطية — احتفظي بها في مكان آمن");
+  toast("تم تنزيل data.json — ارفعيه إلى مستودع الموقع لنشره");
 }
 function importData(inp){
   const f = inp.files[0]; if(!f) return;
