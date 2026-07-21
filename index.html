@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eloria Story — حكايات تُكتب لتبقى</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Cairo:wght@400;600;700&family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+
+<header>
+  <div class="header-in">
+    <a href="#/" class="logo">
+      <span class="en">ELORIA<span> STORY</span></span>
+      <span class="ar">حكايات تُكتب لتبقى</span>
+    </a>
+    <nav id="nav">
+      <a href="#/" data-route="home">الرئيسية</a>
+      <a href="#/library" data-route="library">المكتبة</a>
+      <a href="#/quotes" data-route="quotes">الاقتباسات</a>
+      <a href="#/about" data-route="about">عن الكاتبة</a>
+    </nav>
+    <div style="display:flex; align-items:center; gap:.4rem">
+      <span class="author-badge">✒ وضع المؤلفة</span>
+      <button id="authorKey" title="دخول المؤلفة">🗝</button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- ================= الرئيسية ================= -->
+<section class="view" id="view-home">
+  <div class="hero">
+    <span class="feather">🪶</span>
+    <h1>حكايات تُكتب لتبقى؟</h1>
+    <p>مرحبًا بك في مكتبتي الرقمية، حيث تجد عوالمي وشخصياتي ومكاناتي.<br>افتحي غلافًا، وأشعلي شمعة، ودعي الحكاية تبدأ.</p>
+    <p class="en-sub">A place where stories become worlds.</p>
+    <div class="actions">
+      <a class="btn btn-primary" href="#/library">استكشف المكتبة</a>
+      <a class="btn btn-secondary" href="#/quotes">اقتباسات مضيئة</a>
+    </div>
+  </div>
+
+  <div class="section-title"><span class="orn">✦</span><h2>أحدث الروايات</h2><div class="line"></div><a href="#/library" class="muted" style="font-size:.85rem">عرض الكل</a></div>
+  <div class="grid" id="latestGrid"></div>
+</section>
+
+<!-- ================= المكتبة ================= -->
+<section class="view" id="view-library">
+  <div class="section-title"><span class="orn">❀</span><h2>المكتبة</h2><div class="line"></div>
+    <button class="btn btn-primary btn-sm author-only" onclick="openNovelDialog()">＋ رواية جديدة</button>
+  </div>
+  <div class="toolbar" id="tagFilter"></div>
+  <div class="grid" id="libraryGrid"></div>
+</section>
+
+<!-- ================= صفحة الرواية ================= -->
+<section class="view" id="view-novel"></section>
+
+<!-- ================= صفحة القراءة ================= -->
+<section class="view" id="view-reader"></section>
+
+<!-- ================= الاقتباسات ================= -->
+<section class="view" id="view-quotes">
+  <div class="section-title"><span class="orn">❝</span><h2>اقتباسات مضيئة</h2><div class="line"></div>
+    <button class="btn btn-primary btn-sm author-only" onclick="openQuoteDialog()">＋ اقتباس</button>
+  </div>
+  <div class="quote-grid" id="quoteGrid"></div>
+</section>
+
+<!-- ================= عن الكاتبة ================= -->
+<section class="view" id="view-about">
+  <div class="section-title"><span class="orn">🪶</span><h2>عن الكاتبة</h2><div class="line"></div>
+    <button class="btn btn-secondary btn-sm author-only" onclick="editAbout()">تعديل</button>
+  </div>
+  <div class="paper"><div class="chapter-text" id="aboutText"></div></div>
+</section>
+
+</main>
+
+<footer>
+  <div class="en">ELORIA STORY</div>
+  <div style="margin-top:.4rem">حكايات تُكتب لتبقى · ✦ · جميع الحقوق محفوظة</div>
+</footer>
+
+<div id="toast"></div>
+
+<!-- ================= نافذة رواية ================= -->
+<dialog id="novelDialog"><div class="dlg-in">
+  <h3 id="novelDlgTitle">رواية جديدة</h3>
+  <div class="form-row">
+    <div><label>عنوان الرواية</label><input id="nvTitle" placeholder="إيلوريا"></div>
+    <div><label>الحالة</label><select id="nvStatus"><option value="مستمرة">مستمرة</option><option value="مكتملة">مكتملة</option><option value="متوقفة مؤقتًا">متوقفة مؤقتًا</option></select></div>
+  </div>
+  <div class="form-row">
+    <div><label>التصنيفات (افصلي بينها بفاصلة)</label><input id="nvTags" placeholder="فانتازيا, غموض, رومانسية"></div>
+    <div><label>غلاف الرواية</label><input type="file" id="nvCover" accept="image/*"></div>
+  </div>
+  <div class="form-row single"><div><label>نبذة عن الرواية</label><textarea id="nvDesc" placeholder="حيث تُفتح الذكريات، ويتغير المصير..."></textarea></div></div>
+  <div class="dlg-actions">
+    <button class="btn btn-primary" onclick="saveNovel()">حفظ الرواية</button>
+    <button class="btn btn-ghost" onclick="novelDialog.close()">إلغاء</button>
+  </div>
+</div></dialog>
+
+<!-- ================= نافذة فصل ================= -->
+<dialog id="chapterDialog"><div class="dlg-in">
+  <h3 id="chDlgTitle">فصل جديد</h3>
+  <div class="form-row single"><div><label>عنوان الفصل</label><input id="chTitle" placeholder="الفصل الأول: همس الماضي"></div></div>
+  <div class="form-row single"><div><label>نص الفصل</label><textarea id="chText" style="min-height:260px" placeholder="اكتبي هنا... أو أفلتي ملف نصي في المربع أدناه"></textarea></div></div>
+  <div class="dropzone" id="chDrop">🪶 أفلتي ملف <b>‎.txt / ‎.md</b> هنا أو اضغطي للاختيار<input type="file" id="chFile" accept=".txt,.md,text/plain" hidden></div>
+  <div class="dlg-actions">
+    <button class="btn btn-primary" onclick="saveChapter()">حفظ الفصل</button>
+    <button class="btn btn-ghost" onclick="chapterDialog.close()">إلغاء</button>
+  </div>
+</div></dialog>
+
+<!-- ================= نافذة شخصية ================= -->
+<dialog id="charDialog"><div class="dlg-in">
+  <h3>شخصية جديدة</h3>
+  <div class="form-row">
+    <div><label>اسم الشخصية</label><input id="crName" placeholder="إيلا"></div>
+    <div><label>الدور</label><input id="crRole" placeholder="الشخصية الرئيسية"></div>
+  </div>
+  <div class="form-row single"><div><label>صورة الشخصية (اختياري)</label><input type="file" id="crImg" accept="image/*"></div></div>
+  <div class="dlg-actions">
+    <button class="btn btn-primary" onclick="saveCharacter()">حفظ الشخصية</button>
+    <button class="btn btn-ghost" onclick="charDialog.close()">إلغاء</button>
+  </div>
+</div></dialog>
+
+<!-- ================= نافذة إعداد النشر ================= -->
+<dialog id="publishDialog"><div class="dlg-in">
+  <h3>⚙ إعداد النشر — مرة واحدة فقط</h3>
+  <p class="muted" style="line-height:1.9; margin-bottom:1rem">
+    ليعمل زر النشر، يحتاج الموقع «مفتاح نشر» من GitHub يُحفظ في متصفحك فقط:<br>
+    ١· افتحي <b>github.com/settings/personal-access-tokens</b> واضغطي <b>Generate new token</b>.<br>
+    ٢· تحت <b>Repository access</b> اختاري مستودع موقعك فقط.<br>
+    ٣· تحت <b>Permissions → Contents</b> اختاري <b>Read and write</b> ثم أنشئي المفتاح وانسخيه.<br>
+  </p>
+  <div class="form-row single"><div><label>رابط مستودعك على GitHub</label><input id="ghRepo" placeholder="https://github.com/username/eloria"></div></div>
+  <div class="form-row">
+    <div><label>مفتاح النشر (Token)</label><input id="ghToken" type="password" placeholder="github_pat_..."></div>
+    <div><label>اسم الفرع (اتركيه كما هو غالبًا)</label><input id="ghBranch" value="main"></div>
+  </div>
+  <p class="muted" style="font-size:.8rem">🔒 يُحفظ المفتاح في متصفحك أنتِ فقط، ولا يُنشر مع الموقع أبدًا.</p>
+  <div class="dlg-actions">
+    <button class="btn btn-primary" onclick="savePublishSetup()">حفظ الإعداد</button>
+    <button class="btn btn-ghost" onclick="publishDialog.close()">إلغاء</button>
+  </div>
+</div></dialog>
+
+<!-- ================= نافذة اقتباس ================= -->
+<dialog id="quoteDialog"><div class="dlg-in">
+  <h3>اقتباس جديد</h3>
+  <div class="form-row single"><div><label>نص الاقتباس</label><textarea id="qText" placeholder="بعض الحكايات لا تُروى... بل تُعاش."></textarea></div></div>
+  <div class="form-row single"><div><label>المصدر</label><input id="qSource" placeholder="إيلوريا — الفصل الثالث"></div></div>
+  <div class="dlg-actions">
+    <button class="btn btn-primary" onclick="saveQuote()">حفظ الاقتباس</button>
+    <button class="btn btn-ghost" onclick="quoteDialog.close()">إلغاء</button>
+  </div>
+</div></dialog>
+
+<script src="app.js"></script>
+</body>
+</html>
