@@ -3,11 +3,9 @@
    البيانات: data.json (المنشور للجميع) + متصفح المؤلفة (المسودات)
    ══════════════════════════════════════════════════════════ */
 
-/* ┌─────────────────────────────────────────────────┐
-   │  🗝  كلمة سر المؤلفة — غيّريها من السطر التالي:  │
-   └─────────────────────────────────────────────────┘ */
 const AUTHOR_PASS = "Jana1425";
 const LS_KEY = "eloria-data";
+const GH_KEY = "eloria-gh";   // مكان حفظ إعداد الربط في متصفحك (يبقى بعد التحديث والإغلاق)
 
 let DB = { novels: [], quotes: [], about: "" };
 let editing = { novelId: null, chapterId: null };
@@ -249,7 +247,6 @@ function addAuthorToolbar(){
 if (sessionStorage.getItem("eloria-author")) addAuthorToolbar();
 
 /* ---------- محرك النشر التلقائي إلى GitHub ---------- */
-const GH_KEY = "eloria-gh";
 function getGH(){ try { return JSON.parse(localStorage.getItem(GH_KEY)); } catch(e){ return null; } }
 function setPubStatus(txt, cls){
   const el = document.getElementById("pubStatus");
@@ -263,15 +260,32 @@ function openPublishSetup(){
   if (gh){ ghRepo.value = `https://github.com/${gh.owner}/${gh.repo}`; ghToken.value = gh.token; ghBranch.value = gh.branch; }
   publishDialog.showModal();
 }
-function savePublishSetup(){
+async function savePublishSetup(){
   const m = ghRepo.value.trim().replace(/^https?:\/\/github\.com\//,"").replace(/\/+$/,"").split("/");
   if (m.length < 2 || !m[0] || !m[1]) return toast("تأكدي من رابط المستودع (مثال: github.com/username/eloria)");
-  if (!ghToken.value.trim()) return toast("أدخلي مفتاح الربط");
+  const token = ghToken.value.trim();
+  if (!token) return toast("أدخلي مفتاح الربط");
+  toast("جارٍ فحص الربط... 🕊");
+  /* نفحص المفتاح فورًا ونخبرك بسبب أي مشكلة بدقة */
+  try {
+    const r = await fetch(`https://api.github.com/repos/${m[0]}/${m[1]}`, {
+      headers: { "Authorization":"Bearer "+token, "Accept":"application/vnd.github+json" }
+    });
+    if (r.status === 401)
+      return toast("المفتاح نفسه غير مقبول — انسخيه كاملًا فور إنشائه (يبدأ بـ ghp أو github_pat)");
+    if (r.status === 404)
+      return toast("المفتاح يعمل لكنه لا يرى هذا المستودع — عند إنشائه اختاري هذا المستودع تحديدًا، وتأكدي من الرابط");
+    if (!r.ok)
+      return toast("تعذر الفحص (رمز "+r.status+") — أعيدي المحاولة");
+    const info = await r.json();
+    if (!info.permissions || !info.permissions.push)
+      return toast("المفتاح يقرأ فقط ولا يكتب — أنشئي مفتاحًا بصلاحية الكتابة (انظري التعليمات أعلاه)");
+  } catch(e){ return toast("تعذر الاتصال بالإنترنت — أعيدي المحاولة"); }
   localStorage.setItem(GH_KEY, JSON.stringify({
-    owner:m[0], repo:m[1], token:ghToken.value.trim(), branch:(ghBranch.value.trim()||"main")
+    owner:m[0], repo:m[1], token, branch:(ghBranch.value.trim()||"main")
   }));
   publishDialog.close(); setPubStatus();
-  toast("تم الربط ✓ — من الآن كل حفظ يُنشر تلقائيًا");
+  toast("تم الربط بنجاح ✓ — من الآن كل حفظ يُنشر تلقائيًا");
   publishData(); // انشري الحالة الحالية فورًا
 }
 /* base64 يدعم العربية والأحجام الكبيرة */
