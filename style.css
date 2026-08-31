@@ -216,3 +216,25 @@ footer .en{font-family:'Playfair Display',serif; letter-spacing:.15em; color:var
   nav{font-size:.9rem}
   .hero{padding:3rem 1.3rem}
 }
+
+/* ============ صندوق الاشتراك + نافذة الإشعار ============ */
+.subscribe-card{
+  position:relative; background:#fff; border:1.5px solid var(--lilac);
+  border-radius:var(--radius); box-shadow:var(--shadow);
+  padding:1.6rem 1.4rem; margin:.4rem 0 2.2rem; text-align:center;
+}
+.subscribe-card::before{
+  content:'✦'; position:absolute; top:.7rem; inset-inline-start:50%;
+  transform:translateX(-50%); color:var(--gold); opacity:.5;
+}
+.subscribe-card .sub-lead{color:var(--mauve); line-height:2; font-size:.95rem; margin:.5rem 0 1.1rem}
+.subscribe-card .sub-fine{color:var(--mauve); opacity:.75; font-size:.8rem; margin-top:.9rem}
+
+.notify-list{max-height:46vh; overflow:auto; border:1.5px solid var(--lilac); border-radius:14px; padding:.5rem}
+.notify-item{
+  display:flex; align-items:center; gap:.6rem; padding:.55rem .6rem;
+  border-radius:10px; cursor:pointer; transition:background .15s;
+}
+.notify-item:hover{background:var(--blush)}
+.notify-item input{width:auto; flex:0 0 auto; accent-color:var(--plum)}
+.notify-item .grow{flex:1; font-size:.92rem}
