@@ -238,6 +238,7 @@ function addAuthorToolbar(){
     <span id="pubStatus" class="tag lilac">...</span>
     <button class="btn btn-secondary btn-sm" onclick="openPublishSetup()">🔗 ربط الموقع</button>
     <button class="btn btn-ghost btn-sm" onclick="publishData(true)">نشر الآن</button>
+    <button class="btn btn-primary btn-sm" onclick="openNotifyDialog()">📢 إشعار القرّاء</button>
     <button class="btn btn-ghost btn-sm" onclick="exportData()">⬇ نسخة احتياطية</button>
     <label class="btn btn-ghost btn-sm" style="cursor:pointer">⬆ استيراد<input type="file" accept=".json" hidden onchange="importData(this)"></label>
   </div>`;
@@ -509,6 +510,105 @@ function toast(msg){
   t.textContent = msg; t.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(()=>t.classList.remove("show"), 2600);
+}
+
+/* ══════════════════════════════════════════════════════════
+   📢 إشعار القرّاء — زر يدوي
+   لا يُرسل بريدًا بنفسه. يكتب طلبًا صغيرًا في المستودع
+   (.eloria/send-request.json) بنفس مفتاح النشر الموجود عندك،
+   وGitHub هو من يرسل الرسائل. لا إعداد إضافي في المتصفح.
+   ══════════════════════════════════════════════════════════ */
+const REQ_PATH = ".eloria/send-request.json";
+let announcedCache = null;
+let notifyRows = [];
+
+async function loadAnnounced(){
+  if (announcedCache) return announcedCache;
+  try {
+    const r = await fetch(".eloria/announced.json?t=" + Date.now(), { cache:"no-store" });
+    announcedCache = r.ok ? await r.json() : {};
+  } catch(e){ announcedCache = {}; }
+  announcedCache.novels   = announcedCache.novels   || [];
+  announcedCache.chapters = announcedCache.chapters || [];
+  return announcedCache;
+}
+
+/* كتابة أي ملف في المستودع — نفس آلية النشر تمامًا */
+async function ghPutFile(filePath, text, message){
+  const gh = getGH();
+  if (!gh) return { ok:false };
+  const api = `https://api.github.com/repos/${gh.owner}/${gh.repo}/contents/${filePath}`;
+  const headers = { "Authorization":"Bearer "+gh.token, "Accept":"application/vnd.github+json" };
+  try {
+    let sha = null;
+    const g = await fetch(`${api}?ref=${gh.branch}`, { headers });
+    if (g.ok) sha = (await g.json()).sha;
+    const body = { message, branch: gh.branch, content: b64(text) };
+    if (sha) body.sha = sha;
+    const r = await fetch(api, { method:"PUT", headers, body: JSON.stringify(body) });
+    return { ok:r.ok, status:r.status };
+  } catch(e){ return { ok:false }; }
+}
+
+async function openNotifyDialog(){
+  if (!getGH()) { toast("اربطي الموقع أولًا من «🔗 ربط الموقع»"); return openPublishSetup(); }
+  const ann = await loadAnnounced();
+  const rows = [];
+  DB.novels.forEach(n => {
+    rows.push({ type:"novel", novelId:n.id, label:`رواية جديدة: ${n.title}`,
+                isNew: !ann.novels.includes(n.id) });
+    (n.chapters||[]).forEach(c => {
+      rows.push({ type:"chapter", novelId:n.id, chapterId:c.id,
+                  label:`${n.title} — ${c.title}`,
+                  isNew: !ann.chapters.includes(n.id + ":" + c.id) });
+    });
+  });
+  rows.sort((a,b) => (b.isNew?1:0) - (a.isNew?1:0));
+  notifyRows = rows.slice(0, 40);
+
+  document.getElementById("notifyList").innerHTML = notifyRows.length
+    ? notifyRows.map((r,i) => `
+      <label class="notify-item">
+        <input type="checkbox" data-i="${i}" ${r.isNew ? "checked" : ""}>
+        <span class="grow">${esc(r.label)}</span>
+        <span class="tag ${r.isNew ? "lilac" : ""}">${r.isNew ? "جديد" : "سبق إرساله"}</span>
+      </label>`).join("")
+    : `<div class="empty">لا يوجد محتوى بعد</div>`;
+  document.getElementById("notifyNote").value = "";
+  notifyDialog.showModal();
+}
+
+async function sendNotifyRequest(){
+  const boxes = [...document.querySelectorAll("#notifyList input:checked")];
+  if (!boxes.length) return toast("اختاري ما تريدين الإخبار عنه أولًا");
+  if (!confirm(`سيصل القرّاء إشعار عن ${boxes.length} عنصر. هل نرسل؟`)) return;
+
+  const items = boxes.map(b => {
+    const r = notifyRows[+b.dataset.i];
+    return r.type === "novel"
+      ? { type:"novel", novelId:r.novelId }
+      : { type:"chapter", novelId:r.novelId, chapterId:r.chapterId };
+  });
+
+  const btn = document.getElementById("notifySendBtn");
+  btn.disabled = true;
+  toast("جارٍ النشر أولًا حتى تعمل الروابط... 🕊");
+  await publishData();                      // الروابط في الرسالة يجب أن تكون منشورة
+
+  const res = await ghPutFile(REQ_PATH, JSON.stringify({
+    requestedAt: new Date().toISOString(),
+    note: document.getElementById("notifyNote").value.trim(),
+    items
+  }, null, 2), "📢 طلب إرسال إشعار للقرّاء");
+
+  btn.disabled = false;
+  if (res.ok){
+    notifyDialog.close();
+    announcedCache = null;
+    toast("تم ✓ الرسائل في طريقها — خلال دقيقتين تقريبًا");
+  } else {
+    toast("تعذّر إرسال الطلب — تحققي من الربط ثم أعيدي المحاولة");
+  }
 }
 
 /* ---------- انطلاق ---------- */
