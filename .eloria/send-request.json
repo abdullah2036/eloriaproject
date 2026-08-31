@@ -1,0 +1,25 @@
+{
+  "requestedAt": "2026-08-31T21:28:00.255Z",
+  "note": "هذا الفصل عزيز عليّ اتمنى ان يعجبكم",
+  "items": [
+    {
+      "type": "novel",
+      "novelId": "mthkzke55byy"
+    },
+    {
+      "type": "chapter",
+      "novelId": "mthkzke55byy",
+      "chapterId": "mthmcj24zuat"
+    },
+    {
+      "type": "chapter",
+      "novelId": "mthkzke55byy",
+      "chapterId": "mthnzau5pts0"
+    },
+    {
+      "type": "chapter",
+      "novelId": "mthkzke55byy",
+      "chapterId": "mthpo58j56os"
+    }
+  ]
+}
