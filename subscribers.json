@@ -1,0 +1,7 @@
+{
+  "_readme": "قائمة القرّاء. ملاحظة مهمة: هذا المستودع علني، وأي بريد يُكتب هنا يصبح ظاهرًا للجميع ويبقى في سجل GitHub حتى لو حُذف لاحقًا. البديل الأنظف: ضعي العناوين في GitHub Secret باسم SUBSCRIBERS. النظام يقرأ الاثنين معًا.",
+  "subscribers": [
+    { "email": "example-1@gmail.com", "name": "" },
+    { "email": "example-2@gmail.com", "name": "" }
+  ]
+}

@@ -1,0 +1,77 @@
+name: Notify readers
+
+# Fires ONLY when she presses 📢 إشعار القرّاء, which writes .eloria/send-request.json.
+# Publishing a chapter alone sends nothing — she decides when readers hear about it.
+#
+# This workflow never writes data.json. It writes covers/ and .eloria/announced.json only.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.eloria/send-request.json'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Print the email instead of sending it'
+        type: boolean
+        default: true
+
+concurrency:
+  group: eloria-notify
+  cancel-in-progress: false      # never cancel a half-finished send
+
+permissions:
+  contents: write
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm install nodemailer@6 --no-save --silent
+
+      - name: Read the request + extract the cover image
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+        run: node .github/scripts/notify.mjs prepare
+
+      - name: Commit the cover image (never data.json)
+        run: |
+          git config user.name  "eloria-bot"
+          git config user.email "eloria-bot@users.noreply.github.com"
+          git add covers 2>/dev/null || true
+          git reset -- data.json          # hard guarantee: data.json is never committed here
+          git diff --cached --quiet || git commit -m "🖼 صورة الإشعار"
+          git push || (git pull --rebase --autostash origin main && git push)
+
+      - name: Wait for GitHub Pages to publish the image
+        run: sleep 60
+
+      - name: Send
+        env:
+          SMTP_HOST:   ${{ vars.SMTP_HOST }}
+          SMTP_PORT:   ${{ vars.SMTP_PORT }}
+          SMTP_USER:   ${{ secrets.SMTP_USER }}
+          SMTP_PASS:   ${{ secrets.SMTP_PASS }}
+          SUBSCRIBERS: ${{ secrets.SUBSCRIBERS }}
+          SENDER_NAME: ${{ vars.SENDER_NAME }}
+          SITE_URL:    ${{ vars.SITE_URL }}
+          DRY_RUN:     ${{ inputs.dry_run }}
+        run: node .github/scripts/notify.mjs send
+
+      - name: Save the "already announced" log
+        run: |
+          git config user.name  "eloria-bot"
+          git config user.email "eloria-bot@users.noreply.github.com"
+          git add .eloria/announced.json 2>/dev/null || true
+          git reset -- data.json
+          git diff --cached --quiet || git commit -m "📬 سجل الإشعارات"
+          git push || (git pull --rebase --autostash origin main && git push)
