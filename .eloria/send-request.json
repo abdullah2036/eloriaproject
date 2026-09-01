@@ -1,5 +1,5 @@
 {
-  "requestedAt": "2026-09-01T08:58:56.418Z",
+  "requestedAt": "2026-09-01T10:02:54.168Z",
   "note": "",
   "items": [
     {
@@ -49,6 +49,21 @@
       "type": "chapter",
       "novelId": "mthkzke55byy",
       "chapterId": "mtie9x6pgygk"
+    },
+    {
+      "type": "chapter",
+      "novelId": "mthkzke55byy",
+      "chapterId": "mtighvi38m7v"
+    },
+    {
+      "type": "chapter",
+      "novelId": "mthkzke55byy",
+      "chapterId": "mtih622ibou2"
+    },
+    {
+      "type": "chapter",
+      "novelId": "mthkzke55byy",
+      "chapterId": "mtihzxnrd2i3"
     }
   ]
 }
