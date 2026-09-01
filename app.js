@@ -520,6 +520,7 @@ function toast(msg){
    ══════════════════════════════════════════════════════════ */
 const REQ_PATH = ".eloria/send-request.json";
 let announcedCache = null;
+const NOTIFY_ENDPOINT = "https://script.google.com/macros/s/AKfycbySTvDpXb9_bevZrrSksv7aSUX762slEmtjabf7l9vNEKeFUjSkVpsICOQFQH30OK_5/exec"
 let notifyRows = [];
 
 async function loadAnnounced(){
