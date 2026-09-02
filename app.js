@@ -513,55 +513,38 @@ function toast(msg){
 }
 
 /* ══════════════════════════════════════════════════════════
-   📢 إشعار القرّاء — زر يدوي
-   لا يُرسل بريدًا بنفسه. يكتب طلبًا صغيرًا في المستودع
-   (.eloria/send-request.json) بنفس مفتاح النشر الموجود عندك،
-   وGitHub هو من يرسل الرسائل. لا إعداد إضافي في المتصفح.
+   📢 إشعار القرّاء
+   يرسل مباشرة عبر Google Apps Script — بلا GitHub Actions،
+   وبلا أي كلمة سر داخل الموقع. قائمة القرّاء محفوظة في
+   الخادم نفسه (script.google.com) لا في المستودع العلني.
    ══════════════════════════════════════════════════════════ */
-const REQ_PATH = ".eloria/send-request.json";
-let announcedCache = null;
-const NOTIFY_ENDPOINT = "https://script.google.com/macros/s/AKfycbySTvDpXb9_bevZrrSksv7aSUX762slEmtjabf7l9vNEKeFUjSkVpsICOQFQH30OK_5/exec"
+
+/* ← الصقي هنا رابط الـ /exec بعد نشر Apps Script */
+const NOTIFY_ENDPOINT = "https://script.google.com/macros/s/AKfycbySTvDpXb9_bevZrrSksv7aSUX762slEmtjabf7l9vNEKeFUjSkVpsICOQFQH30OK_5/exec";
+
+const ANN_KEY = "eloria-announced";
 let notifyRows = [];
 
-async function loadAnnounced(){
-  if (announcedCache) return announcedCache;
-  try {
-    const r = await fetch(".eloria/announced.json?t=" + Date.now(), { cache:"no-store" });
-    announcedCache = r.ok ? await r.json() : {};
-  } catch(e){ announcedCache = {}; }
-  announcedCache.novels   = announcedCache.novels   || [];
-  announcedCache.chapters = announcedCache.chapters || [];
-  return announcedCache;
+function announcedSet(){
+  try { return new Set(JSON.parse(localStorage.getItem(ANN_KEY) || "[]")); }
+  catch(e){ return new Set(); }
+}
+function markAnnounced(keys){
+  const s = announcedSet();
+  keys.forEach(k => s.add(k));
+  localStorage.setItem(ANN_KEY, JSON.stringify([...s]));
 }
 
-/* كتابة أي ملف في المستودع — نفس آلية النشر تمامًا */
-async function ghPutFile(filePath, text, message){
-  const gh = getGH();
-  if (!gh) return { ok:false };
-  const api = `https://api.github.com/repos/${gh.owner}/${gh.repo}/contents/${filePath}`;
-  const headers = { "Authorization":"Bearer "+gh.token, "Accept":"application/vnd.github+json" };
-  try {
-    let sha = null;
-    const g = await fetch(`${api}?ref=${gh.branch}`, { headers });
-    if (g.ok) sha = (await g.json()).sha;
-    const body = { message, branch: gh.branch, content: b64(text) };
-    if (sha) body.sha = sha;
-    const r = await fetch(api, { method:"PUT", headers, body: JSON.stringify(body) });
-    return { ok:r.ok, status:r.status };
-  } catch(e){ return { ok:false }; }
-}
-
-async function openNotifyDialog(){
-  if (!getGH()) { toast("اربطي الموقع أولًا من «🔗 ربط الموقع»"); return openPublishSetup(); }
-  const ann = await loadAnnounced();
+function openNotifyDialog(){
+  const ann = announcedSet();
   const rows = [];
   DB.novels.forEach(n => {
-    rows.push({ type:"novel", novelId:n.id, label:`رواية جديدة: ${n.title}`,
-                isNew: !ann.novels.includes(n.id) });
+    rows.push({ key:"n:"+n.id, type:"novel", novelId:n.id,
+                label:`رواية جديدة: ${n.title}`, isNew: !ann.has("n:"+n.id) });
     (n.chapters||[]).forEach(c => {
-      rows.push({ type:"chapter", novelId:n.id, chapterId:c.id,
-                  label:`${n.title} — ${c.title}`,
-                  isNew: !ann.chapters.includes(n.id + ":" + c.id) });
+      const k = "c:"+n.id+":"+c.id;
+      rows.push({ key:k, type:"chapter", novelId:n.id, chapterId:c.id,
+                  label:`${n.title} — ${c.title}`, isNew: !ann.has(k) });
     });
   });
   rows.sort((a,b) => (b.isNew?1:0) - (a.isNew?1:0));
@@ -579,37 +562,92 @@ async function openNotifyDialog(){
   notifyDialog.showModal();
 }
 
-async function sendNotifyRequest(){
-  const boxes = [...document.querySelectorAll("#notifyList input:checked")];
-  if (!boxes.length) return toast("اختاري ما تريدين الإخبار عنه أولًا");
-  if (!confirm(`سيصل القرّاء إشعار عن ${boxes.length} عنصر. هل نرسل؟`)) return;
+/* يبني محتوى الرسالة من العناصر المختارة */
+function buildNotifyPayload(){
+  const chosen = [...document.querySelectorAll("#notifyList input:checked")]
+                   .map(b => notifyRows[+b.dataset.i]);
+  if (!chosen.length) return null;
 
-  const items = boxes.map(b => {
-    const r = notifyRows[+b.dataset.i];
-    return r.type === "novel"
-      ? { type:"novel", novelId:r.novelId }
-      : { type:"chapter", novelId:r.novelId, chapterId:r.chapterId };
+  const base = location.origin + location.pathname.replace(/index\.html$/, "");
+  const items = [];
+  let cover = "";
+
+  chosen.forEach(r => {
+    const n = DB.novels.find(x => x.id === r.novelId);
+    if (!n) return;
+    if (!cover && n.cover) cover = n.cover;
+    if (r.type === "novel"){
+      items.push({ sub:"رواية جديدة ✦", title:n.title,
+                   excerpt:(n.desc||"").slice(0,220),
+                   link:`${base}#/novel/${n.id}` });
+    } else {
+      const c = (n.chapters||[]).find(x => x.id === r.chapterId);
+      if (!c) return;
+      items.push({ sub:`تم نشر فصل جديد! · ${n.title}`, title:c.title,
+                   excerpt:String(c.text||"").replace(/\s+/g," ").slice(0,220),
+                   link:`${base}#/read/${n.id}/${c.id}` });
+    }
   });
+  if (!items.length) return null;
+
+  const first = chosen[0];
+  const fn = DB.novels.find(x => x.id === first.novelId);
+  const subject = first.type === "novel"
+    ? `رواية جديدة على إيلوريا ستوري ✦ ${fn ? fn.title : ""}`
+    : (items.length === 1 ? `تم نشر فصل جديد! ✦ ${fn ? fn.title : ""}`
+                          : "فصول جديدة على إيلوريا ستوري ✦");
+
+  return { subject, items, cover, keys: chosen.map(r => r.key),
+           note: document.getElementById("notifyNote").value.trim() };
+}
+
+/* إرسال بنموذج مخفي — يتجاوز قيود CORS في Apps Script تمامًا */
+function postToNotifier(payload){
+  return new Promise(resolve => {
+    let frame = document.getElementById("notifyFrame");
+    if (!frame){
+      frame = document.createElement("iframe");
+      frame.id = "notifyFrame"; frame.name = "notifyFrame"; frame.style.display = "none";
+      document.body.appendChild(frame);
+    }
+    const form = document.createElement("form");
+    form.method = "POST"; form.action = NOTIFY_ENDPOINT;
+    form.target = "notifyFrame"; form.style.display = "none";
+    const field = document.createElement("input");
+    field.type = "hidden"; field.name = "payload"; field.value = JSON.stringify(payload);
+    form.appendChild(field);
+    document.body.appendChild(form);
+    form.submit();
+    setTimeout(() => { form.remove(); resolve(); }, 1200);
+  });
+}
+
+async function sendNotifyRequest(){
+  const payload = buildNotifyPayload();
+  if (!payload) return toast("اختاري ما تريدين الإخبار عنه أولًا");
+  if (NOTIFY_ENDPOINT.indexOf("PASTE_YOUR_ID_HERE") > -1) return toast("لم يُربط خادم الإشعارات بعد");
+  if (!confirm(`سيصل القرّاء إشعار عن ${payload.items.length} عنصر. هل نرسل؟`)) return;
 
   const btn = document.getElementById("notifySendBtn");
   btn.disabled = true;
   toast("جارٍ النشر أولًا حتى تعمل الروابط... 🕊");
-  await publishData();                      // الروابط في الرسالة يجب أن تكون منشورة
-
-  const res = await ghPutFile(REQ_PATH, JSON.stringify({
-    requestedAt: new Date().toISOString(),
-    note: document.getElementById("notifyNote").value.trim(),
-    items
-  }, null, 2), "📢 طلب إرسال إشعار للقرّاء");
-
+  await publishData();                 // الروابط داخل الرسالة يجب أن تكون منشورة
+  toast("جارٍ إرسال الرسائل... ✉");
+  await postToNotifier(payload);
+  markAnnounced(payload.keys);
   btn.disabled = false;
-  if (res.ok){
-    notifyDialog.close();
-    announcedCache = null;
-    toast("تم ✓ الرسائل في طريقها — خلال دقيقتين تقريبًا");
-  } else {
-    toast("تعذّر إرسال الطلب — تحققي من الربط ثم أعيدي المحاولة");
-  }
+  notifyDialog.close();
+  toast("أُرسل ✓ ستصلك نسخة على بريدك للتأكيد");
+}
+
+/* بديل سريع: مشاركة الخبر على واتساب */
+function shareOnWhatsApp(){
+  const payload = buildNotifyPayload();
+  if (!payload) return toast("اختاري ما تريدين مشاركته أولًا");
+  const lines = payload.items.map(it => `${it.sub}\n📖 ${it.title}\n${it.link}`);
+  const text = (payload.note ? payload.note + "\n\n" : "") + lines.join("\n\n");
+  markAnnounced(payload.keys);
+  window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank");
 }
 
 /* ---------- انطلاق ---------- */
