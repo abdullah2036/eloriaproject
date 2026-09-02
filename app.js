@@ -553,7 +553,7 @@ function openNotifyDialog(){
   document.getElementById("notifyList").innerHTML = notifyRows.length
     ? notifyRows.map((r,i) => `
       <label class="notify-item">
-        <input type="checkbox" data-i="${i}" ${r.isNew ? "checked" : ""}>
+        <input type="checkbox" data-i="${i}">
         <span class="grow">${esc(r.label)}</span>
         <span class="tag ${r.isNew ? "lilac" : ""}">${r.isNew ? "جديد" : "سبق إرساله"}</span>
       </label>`).join("")
