@@ -153,15 +153,22 @@ function renderReader(nid, cid){
   const c = n.chapters[i];
   if (!c) { el.innerHTML = `<div class="empty">لم نعثر على هذا الفصل.</div>`; return; }
   const prev = n.chapters[i-1], next = n.chapters[i+1];
+  const mins = estimateReadMinutes(c.text);
   el.innerHTML = `
   <div class="reader-wrap">
     <div class="reader-bar">
-      <a class="btn btn-ghost btn-sm" href="#/novel/${n.id}">↪ صفحة الرواية</a>
+      <a class="btn btn-ghost btn-sm" href="#/novel/${n.id}">↪️ صفحة الرواية</a>
       <span class="title">${esc(c.title)}</span>
       <div class="font-ctl">
         <button onclick="fontSize(-1)" title="تصغير الخط">A-</button>
         <button onclick="fontSize(1)" title="تكبير الخط">A+</button>
       </div>
+    </div>
+    <div class="stat-row" style="margin-bottom:1.1rem">
+      <div class="stat"><b id="statChapterViews">…</b>مشاهدات الفصل</div>
+      <div class="stat"><b id="statNovelReads">…</b>إجمالي قراءات الرواية</div>
+      <div class="stat"><b>${mins} د</b>وقت القراءة التقريبي</div>
+      <div class="stat"><b>${i+1} / ${n.chapters.length}</b>ترتيب الفصل</div>
     </div>
     <div class="paper"><div class="chapter-text">${esc(c.text)}</div></div>
     <div class="reader-nav">
@@ -169,6 +176,7 @@ function renderReader(nid, cid){
       ${next ? `<a class="btn btn-primary" href="#/read/${n.id}/${next.id}">الفصل التالي ←</a>` : `<a class="btn btn-ghost" href="#/novel/${n.id}">نهاية الفصول المتاحة ✨</a>`}
     </div>
   </div>`;
+  trackReaderStats(n.id, c.id);
 }
 let readerSize = parseFloat(localStorage.getItem("eloria-font") || "1.08");
 document.documentElement.style.setProperty("--reader-size", readerSize+"rem");
@@ -649,6 +657,21 @@ function shareOnWhatsApp(){
   markAnnounced(payload.keys);
   window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank");
 }
+function estimateReadMinutes(text){
+  const words = (text||"").trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.round(words / 180));
+}
 
+function trackReaderStats(nid, cid){
+  const ns = "eloria-story-jana";
+  const chEl = document.getElementById("statChapterViews");
+  const nvEl = document.getElementById("statNovelReads");
+  fetch(`https://api.counterapi.dev/v1/${ns}/ch-${nid}-${cid}/up`)
+    .then(r => r.json()).then(d => { if(chEl) chEl.textContent = d.value ?? "—"; })
+    .catch(()=>{ if(chEl) chEl.textContent = "—"; });
+  fetch(`https://api.counterapi.dev/v1/${ns}/nv-${nid}/up`)
+    .then(r => r.json()).then(d => { if(nvEl) nvEl.textContent = d.value ?? "—"; })
+    .catch(()=>{ if(nvEl) nvEl.textContent = "—"; });
+}
 /* ---------- انطلاق ---------- */
 loadData().then(route);
